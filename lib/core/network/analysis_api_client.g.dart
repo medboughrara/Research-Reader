@@ -6,7 +6,7 @@ part of 'analysis_api_client.dart';
 // RetrofitGenerator
 // **************************************************************************
 
-// ignore_for_file: unnecessary_brace_in_string_interps,no_leading_underscores_for_local_identifiers,unused_element
+// ignore_for_file: unnecessary_brace_in_string_interps,no_leading_underscores_for_local_identifiers,unused_element,unnecessary_string_interpolations
 
 class _AnalysisApiClient implements AnalysisApiClient {
   _AnalysisApiClient(
@@ -24,16 +24,24 @@ class _AnalysisApiClient implements AnalysisApiClient {
   final ParseErrorLogger? errorLogger;
 
   @override
-  Future<AnalysisResponse> summarizeText(Map<String, dynamic> request) async {
+  Future<AnalysisResponse> summarizeText(
+    String apiKey,
+    Map<String, dynamic> request,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{
+      r'Content-Type': 'application/json',
+      r'x-goog-api-key': apiKey,
+    };
+    _headers.removeWhere((k, v) => v == null);
     final _data = <String, dynamic>{};
     _data.addAll(request);
     final _options = _setStreamType<AnalysisResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
+      contentType: 'application/json',
     )
         .compose(
           _dio.options,
@@ -59,16 +67,23 @@ class _AnalysisApiClient implements AnalysisApiClient {
 
   @override
   Future<AnalysisResponse> analyzeMethodology(
-      Map<String, dynamic> request) async {
+    String apiKey,
+    Map<String, dynamic> request,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{
+      r'Content-Type': 'application/json',
+      r'x-goog-api-key': apiKey,
+    };
+    _headers.removeWhere((k, v) => v == null);
     final _data = <String, dynamic>{};
     _data.addAll(request);
     final _options = _setStreamType<AnalysisResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
+      contentType: 'application/json',
     )
         .compose(
           _dio.options,
@@ -94,16 +109,23 @@ class _AnalysisApiClient implements AnalysisApiClient {
 
   @override
   Future<AnalysisResponse> analyzeStatistics(
-      Map<String, dynamic> request) async {
+    String apiKey,
+    Map<String, dynamic> request,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{
+      r'Content-Type': 'application/json',
+      r'x-goog-api-key': apiKey,
+    };
+    _headers.removeWhere((k, v) => v == null);
     final _data = <String, dynamic>{};
     _data.addAll(request);
     final _options = _setStreamType<AnalysisResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
+      contentType: 'application/json',
     )
         .compose(
           _dio.options,
@@ -129,16 +151,23 @@ class _AnalysisApiClient implements AnalysisApiClient {
 
   @override
   Future<AnalysisResponse> extractCitations(
-      Map<String, dynamic> request) async {
+    String apiKey,
+    Map<String, dynamic> request,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{
+      r'Content-Type': 'application/json',
+      r'x-goog-api-key': apiKey,
+    };
+    _headers.removeWhere((k, v) => v == null);
     final _data = <String, dynamic>{};
     _data.addAll(request);
     final _options = _setStreamType<AnalysisResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
+      contentType: 'application/json',
     )
         .compose(
           _dio.options,
@@ -164,16 +193,23 @@ class _AnalysisApiClient implements AnalysisApiClient {
 
   @override
   Future<AnalysisResponse> suggestFutureResearch(
-      Map<String, dynamic> request) async {
+    String apiKey,
+    Map<String, dynamic> request,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
-    final _headers = <String, dynamic>{};
+    final _headers = <String, dynamic>{
+      r'Content-Type': 'application/json',
+      r'x-goog-api-key': apiKey,
+    };
+    _headers.removeWhere((k, v) => v == null);
     final _data = <String, dynamic>{};
     _data.addAll(request);
     final _options = _setStreamType<AnalysisResponse>(Options(
       method: 'POST',
       headers: _headers,
       extra: _extra,
+      contentType: 'application/json',
     )
         .compose(
           _dio.options,

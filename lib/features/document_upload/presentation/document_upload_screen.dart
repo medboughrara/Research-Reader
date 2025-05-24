@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/document_upload_bloc.dart';
-import '../../../shared/models/document.dart';
+import '../../../shared/models/document.dart'; 
+import '../../../shared/di/service_locator.dart'; 
+import '../../../shared/services/document_service.dart'; 
+import '../../analysis/presentation/analysis_screen.dart'; // Added import for AnalysisScreen
 
 class DocumentUploadScreen extends StatelessWidget {
   const DocumentUploadScreen({super.key});
@@ -9,7 +12,7 @@ class DocumentUploadScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => DocumentUploadBloc(),
+      create: (context) => DocumentUploadBloc(documentService: getIt<DocumentService>()),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Upload Document'),
@@ -18,12 +21,18 @@ class DocumentUploadScreen extends StatelessWidget {
           listener: (context, state) {
             if (state is DocumentUploadSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Document uploaded successfully')),
+                const SnackBar(content: Text('Document uploaded successfully! Navigating to analysis...')),
               );
-              // TODO: Navigate to analysis screen
+              // Navigate to analysis screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AnalysisScreen(document: state.document),
+                ),
+              );
             } else if (state is DocumentUploadFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.error)),
+                SnackBar(content: Text('Upload Failed: ${state.error}')), // Displaying user-friendly error
               );
             }
           },
@@ -60,9 +69,12 @@ class DocumentUploadScreen extends StatelessWidget {
                         const SizedBox(height: 24),
                         ElevatedButton(
                           onPressed: () {
-                            context.read<DocumentUploadBloc>().add(
-                                  DocumentSelectionRequested(),
-                                );
+                            // Prevent multiple upload requests if one is already in progress
+                            if (state is! DocumentUploadInProgress) {
+                                context.read<DocumentUploadBloc>().add(
+                                      DocumentSelectionRequested(),
+                                    );
+                            }
                           },
                           child: const Text('Select Document'),
                         ),

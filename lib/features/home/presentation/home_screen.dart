@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+// import 'package:flutter_bloc/flutter_bloc.dart'; // Unused import from previous analysis
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:research_reader/shared/widgets/upload_card.dart';
 import 'package:research_reader/shared/widgets/research_paper_card.dart';
 import 'package:research_reader/shared/models/document.dart';
 import 'package:research_reader/shared/di/service_locator.dart';
 import 'package:research_reader/shared/services/document_service.dart';
+import 'package:research_reader/core/utils/logger.dart';
+import '../../../core/errors/app_exceptions.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     {'id': 'en-AU-Neural2-F', 'name': 'Olivia (Australian Female)'},
   ];
 
-  late StreamSubscription<List<Document>> _documentSubscription;
+  // late StreamSubscription<List<Document>> _documentSubscription; // Commented out
   List<Document> _documents = [];
 
   @override
@@ -40,21 +42,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadDocuments() async {
-    final documents = await getIt<DocumentService>().getAllDocuments();
-    setState(() {
-      _documents = documents;
-    });
+    // It's good practice to capture the BuildContext and check mounted status
+    // before the async operation if you plan to use context after it.
+    if (!mounted) return; 
+    final currentContext = context; // Capture context
+
+    try {
+      final documents = await getIt<DocumentService>().getAllDocuments();
+      if (mounted) {
+        setState(() {
+          _documents = documents;
+        });
+      }
+    } catch (e, s) {
+       AppLogger.logError("Failed to load documents", error: e, stackTrace: s, tag: "HomeScreen");
+       if (mounted) { // Check mounted again before using captured context
+         ScaffoldMessenger.of(currentContext).showSnackBar( // Use captured context
+           SnackBar(content: Text('Failed to load documents: ${e is AppException ? e.message : e.toString()}'))
+         );
+       }
+    }
   }
 
   @override
   void dispose() {
-    _documentSubscription.cancel();
     super.dispose();
   }
 
   void _handleFilesSelected(List<String> files) {
     // TODO: Implement file upload
-    print('Files selected: $files');
+    AppLogger.logInfo('Files selected: $files', tag: "HomeScreen");
   }
 
   @override
@@ -79,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ... (rest of the UI as before, no changes needed here for this specific lint)
             const Center(
               child: Column(
                 children: [
@@ -123,9 +141,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         Checkbox(
                           value: showOfflineOnly,
                           onChanged: (value) {
-                            setState(() {
-                              showOfflineOnly = value!;
-                            });
+                            if (mounted) { 
+                              setState(() {
+                                showOfflineOnly = value!;
+                              });
+                            }
                           },
                         ),
                         const Text('Show offline papers only'),
@@ -184,17 +204,33 @@ class _HomeScreenState extends State<HomeScreen> {
                     isPlaying: currentPlayingId == document.id,
                     isCached: false, // TODO: Implement offline caching status
                     onPlay: () {
-                      setState(() {
-                        if (currentPlayingId == document.id) {
-                          currentPlayingId = null;
-                        } else {
-                          currentPlayingId = document.id;
-                        }
-                      });
+                       if (mounted) { 
+                        setState(() {
+                          if (currentPlayingId == document.id) {
+                            currentPlayingId = null;
+                          } else {
+                            currentPlayingId = document.id;
+                          }
+                        });
+                       }
                     },
                     onDelete: () async {
-                      await getIt<DocumentService>().deleteDocument(document.id);
-                      _loadDocuments();
+                      // Capture context before async gap for ScaffoldMessenger
+                      if (!mounted) return;
+                      final scaffoldMessenger = ScaffoldMessenger.of(context); // Capture
+
+                      try {
+                        await getIt<DocumentService>().deleteDocument(document.id);
+                        _loadDocuments(); // Refresh list
+                      } catch (e, s) {
+                        AppLogger.logError("Failed to delete document ${document.id}", error: e, stackTrace: s, tag: "HomeScreen");
+                        // Use captured ScaffoldMessenger, guarded by mounted check (though it's less critical here as it's captured from a mounted state)
+                        if (mounted) { 
+                          scaffoldMessenger.showSnackBar(
+                             SnackBar(content: Text('Failed to delete document: ${e is AppException ? e.message : e.toString()}'))
+                          );
+                        }
+                      }
                     },
                     onDownload: () {
                       // TODO: Implement download

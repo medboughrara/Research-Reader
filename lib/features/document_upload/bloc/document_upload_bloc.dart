@@ -2,62 +2,22 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../shared/models/document.dart';
 import '../../../shared/services/document_service.dart';
-import '../../../shared/di/service_locator.dart';
+// import '../../../shared/di/service_locator.dart'; // No longer using getIt here
+import '../../../core/utils/logger.dart'; // Added AppLogger
+import '../../../core/errors/app_exceptions.dart'; // Added AppExceptions
 
-// Events
-abstract class DocumentUploadEvent extends Equatable {
-  const DocumentUploadEvent();
-
-  @override
-  List<Object> get props => [];
-}
-
-class UploadDocumentRequested extends DocumentUploadEvent {
-  final String filePath;
-
-  const UploadDocumentRequested(this.filePath);
-
-  @override
-  List<Object> get props => [filePath];
-}
-
-class DocumentSelectionRequested extends DocumentUploadEvent {}
-
-// States
-abstract class DocumentUploadState extends Equatable {
-  const DocumentUploadState();
-
-  @override
-  List<Object> get props => [];
-}
-
-class DocumentUploadInitial extends DocumentUploadState {}
-
-class DocumentUploadInProgress extends DocumentUploadState {}
-
-class DocumentUploadSuccess extends DocumentUploadState {
-  final Document document;
-
-  const DocumentUploadSuccess(this.document);
-
-  @override
-  List<Object> get props => [document];
-}
-
-class DocumentUploadFailure extends DocumentUploadState {
-  final String error;
-
-  const DocumentUploadFailure(this.error);
-
-  @override
-  List<Object> get props => [error];
-}
+part 'document_upload_event.dart';
+part 'document_upload_state.dart';
 
 // BLoC
 class DocumentUploadBloc extends Bloc<DocumentUploadEvent, DocumentUploadState> {
-  final DocumentService _documentService = getIt<DocumentService>();
+  final DocumentService _documentService;
+  static const String _tag = "DocumentUploadBloc"; // Tag for AppLogger
 
-  DocumentUploadBloc() : super(DocumentUploadInitial()) {
+  // Modified constructor to accept DocumentService via DI
+  DocumentUploadBloc({required DocumentService documentService}) 
+      : _documentService = documentService,
+        super(DocumentUploadInitial()) {
     on<DocumentSelectionRequested>(_onDocumentSelectionRequested);
     on<UploadDocumentRequested>(_onUploadDocumentRequested);
   }
@@ -67,23 +27,76 @@ class DocumentUploadBloc extends Bloc<DocumentUploadEvent, DocumentUploadState> 
     Emitter<DocumentUploadState> emit,
   ) async {
     try {
+      emit(DocumentUploadInProgress()); // Indicate progress
       final document = await _documentService.uploadDocument();
       emit(DocumentUploadSuccess(document));
-    } catch (e) {
-      emit(DocumentUploadFailure(e.toString()));
+    } on DocumentProcessingException catch (e, s) {
+      AppLogger.logError(
+        "Document processing error during selection/upload: ${e.message}",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(DocumentUploadFailure("Failed to process document: ${e.message}"));
+    } on StorageException catch (e, s) {
+      AppLogger.logError(
+        "Storage error during document selection/upload: ${e.message}",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(DocumentUploadFailure("Could not save document: ${e.message} Please check storage and permissions."));
+    } catch (e, s) {
+      AppLogger.logError(
+        "Unexpected error during document selection/upload.",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(const DocumentUploadFailure("An unexpected error occurred while uploading the document. Please try again."));
     }
-  }  Future<void> _onUploadDocumentRequested(
+  }  
+  
+  Future<void> _onUploadDocumentRequested(
     UploadDocumentRequested event,
     Emitter<DocumentUploadState> emit,
   ) async {
+    // This event handler currently calls the same method as DocumentSelectionRequested.
+    // If UploadDocumentRequested is meant to handle a file path directly (e.g., from drag-and-drop
+    // that doesn't use FilePicker.platform.pickFiles), its logic would be different.
+    // For now, it mirrors _onDocumentSelectionRequested as it calls _documentService.uploadDocument()
+    // which internally handles file picking. If `event.filePath` were to be used,
+    // `_documentService` would need a method like `saveUploadedFile(String filePath)`.
+    // Assuming the current behavior of using file picker is intended for both events:
     try {
       emit(DocumentUploadInProgress());
-      // This method should be integrated with DocumentService
-      // for now, just use the selection method
-      final document = await _documentService.uploadDocument();
+      AppLogger.logInfo("UploadDocumentRequested event received, filePath: ${event.filePath} (Note: filePath currently not used directly, file picker is invoked by service)", tag: _tag);
+      final document = await _documentService.uploadDocument(); // This invokes file picker
       emit(DocumentUploadSuccess(document));
-    } catch (e) {
-      emit(DocumentUploadFailure(e.toString()));
+    } on DocumentProcessingException catch (e, s) {
+      AppLogger.logError(
+        "Document processing error during upload: ${e.message}",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(DocumentUploadFailure("Failed to process document: ${e.message}"));
+    } on StorageException catch (e, s) {
+      AppLogger.logError(
+        "Storage error during document upload: ${e.message}",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(DocumentUploadFailure("Could not save document: ${e.message} Please check storage and permissions."));
+    } catch (e, s) {
+      AppLogger.logError(
+        "Unexpected error during document upload.",
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      emit(const DocumentUploadFailure("An unexpected error occurred while uploading the document. Please try again."));
     }
   }
 }
