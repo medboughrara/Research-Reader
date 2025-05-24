@@ -1,18 +1,22 @@
 import 'dart:convert';
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:http/http.dart' as http;
-import '../config/env_config.dart';
+import '../../core/config/env_config.dart'; // Corrected path
+import '../../core/errors/app_exceptions.dart'; // Added import for custom exceptions
+import '../../core/utils/logger.dart'; // Added import for AppLogger
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
 class NvidiaTtsService {
   static const String _baseUrl = 'https://api.nvidia.com/magpie-tts/v1';
   final String _apiKey;
+  static const String _tag = "NvidiaTtsService"; // Tag for AppLogger
   
   NvidiaTtsService() : _apiKey = EnvConfig.ttsApiKey;
 
   Future<String> synthesizeSpeech({
     required String text,
-    String voice = 'female_neutral', // female_neutral, female_calm, male_neutral, male_calm, male_happy, male_fearful, male_sad, male_angry
+    String voice = 'female_neutral',
     String language = 'en-US',
     double speakingRate = 1.0,
   }) async {
@@ -36,25 +40,35 @@ class NvidiaTtsService {
       );
 
       if (response.statusCode == 200) {
-        // Save the audio file to local storage
         final audioData = response.bodyBytes;
         final file = await _saveAudioFile(audioData);
         return file.path;
       } else {
-        throw Exception('Failed to synthesize speech: ${response.statusCode}');
+        throw TTSException(
+          'Failed to synthesize speech. Status code: ${response.statusCode}',
+          code: response.statusCode.toString(),
+          details: response.body,
+        );
       }
+    } on http.ClientException catch (e) {
+      throw NetworkException('Network error during TTS synthesis: ${e.message}', details: e);
     } catch (e) {
-      throw Exception('Error synthesizing speech: $e');
+      if (e is AppException) rethrow;
+      throw TTSException('An unexpected error occurred during TTS synthesis.', details: e.toString());
     }
   }
 
-  Future<File> _saveAudioFile(List<uint8> audioData) async {
-    final directory = await getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filePath = '${directory.path}/tts_$timestamp.wav';
-    final file = File(filePath);
-    await file.writeAsBytes(audioData);
-    return file;
+  Future<File> _saveAudioFile(Uint8List audioData) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${directory.path}/tts_$timestamp.wav';
+      final file = File(filePath);
+      await file.writeAsBytes(audioData);
+      return file;
+    } catch (e) {
+      throw StorageException('Failed to save TTS audio file.', details: e.toString());
+    }
   }
 
   static const availableVoices = {
@@ -82,13 +96,18 @@ class NvidiaTtsService {
         },
       );
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (e, s) {
+      AppLogger.logError( // Changed to logError
+        'NVIDIA TTS testConnection failed. This might be a network issue or invalid API key.', 
+        tag: _tag,
+        error: e,
+        stackTrace: s
+      );
       return false;
     }
   }
 
   Future<void> preloadVoices() async {
-    // Synthesize a short text with each voice to cache them
     const testText = 'Testing voice synthesis.';
     for (var gender in availableVoices.keys) {
       for (var emotion in availableVoices[gender]!.keys) {
@@ -97,9 +116,13 @@ class NvidiaTtsService {
             text: testText,
             voice: availableVoices[gender]![emotion]!,
           );
-        } catch (e) {
-          // Ignore errors during preloading
-          print('Failed to preload voice: $gender-$emotion');
+        } catch (e, s) {
+          AppLogger.logError( // Changed to logError
+            'Failed to preload voice: $gender-$emotion.',
+            tag: _tag,
+            error: e,
+            stackTrace: s,
+          );
         }
       }
     }
