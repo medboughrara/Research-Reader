@@ -1,0 +1,23 @@
+﻿{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Research Reader (Development)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=FLUTTER_ENV=development"
+      ]
+    },
+    {
+      "name": "Research Reader (Production)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=FLUTTER_ENV=production"
+      ]
+    }
+  ]
+}
